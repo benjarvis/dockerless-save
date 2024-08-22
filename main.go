@@ -137,9 +137,7 @@ func addManifest(
     tarWriter *tar.Writer,
     imageManifest *ImageManifest) error {
 
-    fmt.Printf("Schema Version: %d\n", manifest.SchemaVersion)
-    fmt.Printf("Media Type: %s\n", manifest.MediaType)
-    fmt.Printf("Config Digest: %s\n", manifest.Config.Digest)
+    log.Printf("Adding %s/%s\n", repository, tag)
 
     hash_parts := strings.SplitN(manifest.Config.Digest, ":", 2)
 
@@ -148,28 +146,8 @@ func addManifest(
 
     filename := fmt.Sprintf("blobs/%s/%s", hashType, hash)
 
-/*
-    header := &tar.Header{
-        Name: filename,
-        Size: int64(len(body)),
-    }
-
-    err := tarWriter.WriteHeader(header)
-
-    if err != nil {
-        return fmt.Errorf("error writing tar header: %v", err)
-    }
-
-    _, err = io.Copy(tarWriter, bytes.NewReader(body))
-
-    if err != nil {
-        return fmt.Errorf("error copying file to tarball: %v", err)
-    }
-*/
-
-
     for i, layer := range manifest.Layers {
-        fmt.Printf("Layer %d: %s (size: %d bytes)\n", i+1, layer.Digest, layer.Size)
+        log.Printf(   "Layer %d: %s (size: %d bytes)\n", i+1, layer.Digest, layer.Size)
         err := addBlob(client, registry, repository, layer.Digest, tarWriter)
 
         if err != nil {
@@ -286,10 +264,7 @@ func main() {
                 log.Fatalf("Error parsing manifest list: %v\n", err)
             }
 
-            for i, m := range manifestList.Manifests {
-                fmt.Printf("Manifest %d: %s (size: %d bytes)\n", i+1, m.Digest, m.Size)
-                fmt.Printf("  Platform: %s/%s\n", m.Platform.OS, m.Platform.Architecture)
-
+            for _, m := range manifestList.Manifests {
                 _, arch_manifest, err := fetchManifest(client, registry, repository, m.Digest)
 
                 if err != nil {
