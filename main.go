@@ -234,6 +234,8 @@ func main() {
     for scanner.Scan() {
         image_path := scanner.Text()
 
+        log.Printf("Scanning %s\n", image_path)
+
         parts := strings.SplitN(image_path, ":", 2)
 
 	repository := parts[0]
@@ -277,11 +279,13 @@ func main() {
                     log.Fatalf("Error parsing manifest: %v\n", err)
                 }
 
-                if m.Platform.Architecture == "linux/amd64" {
+                if strings.Contains(m.Platform.Architecture,"amd64") {
                     addManifest(client, registry, repository, tag, &manifest, body, tarWriter, &imageManifest)
                 }
             }
 
+        } else {
+            log.Fatalf("Unhandled media type %s\n", mediaType) 
         }
     }
 
