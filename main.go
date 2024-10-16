@@ -59,6 +59,26 @@ type ManifestEntry struct {
 
 type ImageManifest []ManifestEntry
 
+type ImageIndex struct {
+    SchemaVersion int    `json:"schemaVersion"`
+    MediaType     string `json:"mediaType"`
+    Manifests     []struct {
+        MediaType   string `json:"mediaType"`
+        Size        int    `json:"size"`
+        Digest      string `json:"digest"`
+        Platform    struct {
+            Architecture string   `json:"architecture"`
+            OS           string   `json:"os"`
+            OSVersion    string   `json:"os.version,omitempty"`
+            OSFeatures   []string `json:"os.features,omitempty"`
+            Variant      string   `json:"variant,omitempty"`
+            Features     []string `json:"features,omitempty"`
+        } `json:"platform"`
+        Annotations map[string]string `json:"annotations,omitempty"`
+    } `json:"manifests"`
+    Annotations map[string]string `json:"annotations,omitempty"`
+}
+
 func addBlob(client *http.Client, registry string, repository string, digest string, tarWriter *tar.Writer) error {
 
     hash_parts := strings.SplitN(digest, ":", 2)
@@ -283,7 +303,31 @@ func main() {
                     addManifest(client, registry, repository, tag, &manifest, body, tarWriter, &imageManifest)
                 }
             }
+        } else if strings.Contains(mediaType, "application/vnd.oci.image.index.v1+json") {
 
+            var imageIndex ImageIndex
+
+            if err := json.Unmarshal(body, &imageIndex); err != nil {
+                log.Fatalf("Error parsing image index: %v\n", err)
+            }
+
+            for _, m := range imageIndex.Manifests {
+                _, arch_manifest, err := fetchManifest(client, registry, repository, m.Digest)
+
+                if err != nil {
+                    log.Fatalf("Error fetching manifest: %v\n", err)
+                }
+
+                var manifest Manifest
+
+                if err := json.Unmarshal(arch_manifest, &manifest); err != nil {
+                    log.Fatalf("Error parsing manifest: %v\n", err)
+                }
+
+                if strings.Contains(m.Platform.Architecture, "amd64") {
+                    addManifest(client, registry, repository, tag, &manifest, body, tarWriter, &imageManifest)
+                }
+            }
         } else {
             log.Fatalf("Unhandled media type %s\n", mediaType) 
         }
